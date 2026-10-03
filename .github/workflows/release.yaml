@@ -1,0 +1,51 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "charts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  packages: write
+
+env:
+  HELM_VERSION: v3.22.0
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
+
+      # A chart version is published once. Its git tag marks it as released.
+      - name: Publish new chart versions
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          registry="oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"
+          for chart in charts/*/; do
+            name=$(helm show chart "$chart" | sed -n 's/^name: //p')
+            version=$(helm show chart "$chart" | sed -n 's/^version: //p')
+            tag="$name-$version"
+            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+              echo "$tag is already released"
+              continue
+            fi
+            helm dependency build "$chart"
+            helm package "$chart" --destination dist
+            helm push "dist/$tag.tgz" "$registry"
+            gh release create "$tag" "dist/$tag.tgz" --title "$tag" \
+              --notes "Install with \`helm install my-release $registry/$name --version $version\`. See [the changelog](charts/$name/CHANGELOG.md)."
+          done

@@ -1,0 +1,93 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  HELM_VERSION: v3.22.0
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - uses: helm/chart-testing-action@v2.8.0
+
+      # Pull requests must raise the chart version. Pushes to main lint every chart.
+      - name: Lint
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            ct lint --config ct.yaml
+          else
+            ct lint --config ct.yaml --all --check-version-increment=false
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check that the README matches values.yaml
+        run: |
+          for chart in charts/*/; do
+            npx -y @bitnami/readme-generator-for-helm@2 -v "$chart/values.yaml" -r "$chart/README.md"
+          done
+          git diff --exit-code -- 'charts/*/README.md' || {
+            echo "::error::Regenerate the README with readme-generator-for-helm (see README.md)"
+            exit 1
+          }
+
+  e2e:
+    name: e2e (eudi-dev ${{ matrix.image }})
+    needs: lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # release: the image the chart ships with. main: eudi-dev's main branch, so
+        # chart changes for the next eudi-dev release are tested before it ships.
+        image: [release, main]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-helm@v4
+        with:
+          version: ${{ env.HELM_VERSION }}
+
+      - uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - uses: actions/checkout@v4
+        if: matrix.image == 'main'
+        with:
+          repository: dominikschlosser/eudi-dev
+          path: eudi-dev
+
+      - name: Build eudi-dev from main
+        if: matrix.image == 'main'
+        run: |
+          docker build -t ghcr.io/dominikschlosser/eudi-dev:main-ci --build-arg VERSION=main eudi-dev
+          {
+            echo "IMAGE_TAG=main-ci"
+            echo "LOAD_IMAGE=ghcr.io/dominikschlosser/eudi-dev:main-ci"
+            echo "PREFIX_TESTS=true"
+          } >> "$GITHUB_ENV"
+
+      - name: Install the chart and check the wallet
+        run: test/e2e.sh --kind

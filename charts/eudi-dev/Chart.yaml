@@ -1,0 +1,33 @@
+annotations:
+  images: |
+    - name: eudi-dev
+      version: 2.5.1
+      image: ghcr.io/dominikschlosser/eudi-dev:v2.5.1
+  licenses: Apache-2.0
+apiVersion: v2
+appVersion: 2.5.1
+dependencies:
+  - name: common
+    repository: oci://registry-1.docker.io/bitnamicharts
+    tags:
+      - bitnami-common
+    version: 2.x.x
+description: Developer test wallet for the EUDI ecosystem with a demo issuer and verifier. Issues, holds and presents SD-JWT VC and mdoc credentials over OpenID4VCI and OpenID4VP.
+home: https://github.com/dominikschlosser/eudi-dev
+icon: https://raw.githubusercontent.com/dominikschlosser/eudi-dev/main/docs/assets/logo-mark.svg
+keywords:
+  - eudi
+  - wallet
+  - openid4vp
+  - openid4vci
+  - sd-jwt
+  - mdoc
+kubeVersion: ">= 1.25.0-0"
+maintainers:
+  - name: Dominik Schlosser
+    url: https://github.com/dominikschlosser
+name: eudi-dev
+sources:
+  - https://github.com/dominikschlosser/eudi-dev
+  - https://github.com/dominikschlosser/eudi-dev-helm
+version: 0.1.0

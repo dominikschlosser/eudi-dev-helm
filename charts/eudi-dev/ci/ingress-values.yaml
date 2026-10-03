@@ -1,0 +1,9 @@
+ingress:
+  enabled: true
+  hostname: eudi.example.com
+  tls: true
+  selfSigned: true
+httpRoute:
+  enabled: false
+validationMode: strict
+autoAccept: false

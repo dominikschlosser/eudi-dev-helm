@@ -1,0 +1,55 @@
+CHART NAME: {{ .Chart.Name }}
+CHART VERSION: {{ .Chart.Version }}
+APP VERSION: {{ .Chart.AppVersion }}
+
+{{- if .Values.diagnosticMode.enabled }}
+The chart has been deployed in diagnostic mode. All probes have been disabled and the command has been overwritten with:
+
+  command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 4 }}
+  args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 4 }}
+
+Get the list of pods by executing:
+
+  kubectl get pods --namespace {{ include "common.names.namespace" . }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+Access the pod you want to debug by executing
+
+  kubectl exec --namespace {{ include "common.names.namespace" . }} -ti <NAME OF THE POD> -- sh
+
+{{- else }}
+
+The wallet advertises this public URL:
+
+  {{ include "eudi-dev.baseURL" . }}
+
+Open the wallet from your machine:
+
+  kubectl port-forward --namespace {{ include "common.names.namespace" . }} svc/{{ include "common.names.fullname" . }} {{ .Values.service.ports.http }}:{{ .Values.service.ports.http }}
+  open http://localhost:{{ .Values.service.ports.http }}
+
+{{- if eq .Values.storage.type "memory" }}
+
+NOTE: storage.type=memory. Credentials issued or imported while the pod runs are lost when it restarts.
+{{- end }}
+{{- if and (eq .Values.storage.type "file") (not .Values.persistence.enabled) }}
+
+WARNING: storage.type=file without persistence.enabled. The files live in an emptyDir and are lost with the pod.
+{{- end }}
+{{- if and (not .Values.seed.existingSecret) (or (eq (toString .Values.seed.value) "eudi-dev") (and (eq (toString .Values.seed.value) "auto") (eq .Values.storage.type "memory"))) }}
+
+NOTE: The keys derive from the public seed "eudi-dev". Anyone can derive this wallet's CA. Set seed.value to your own value, or to "" for random keys.
+{{- end }}
+{{- if and (or .Values.ingress.enabled .Values.httpRoute.enabled) (hasPrefix "http://" (include "eudi-dev.baseURL" .)) }}
+
+NOTE: The base URL uses http. The wallet then serves its own issuer over HTTPS on port {{ add1 .Values.containerPorts.http }}, which the ingress does not route. Use an https base URL (ingress.tls=true or baseURL).
+{{- end }}
+{{- if include "eudi-dev.basePath" . }}
+
+The wallet is served under the path prefix {{ include "eudi-dev.basePath" . }}. This needs eudi-dev 2.6.0 or later.
+{{- end }}
+{{- end }}
+
+{{- include "common.warnings.rollingTag" .Values.image }}
+{{- include "common.warnings.resources" (dict "sections" (list "") "context" $) }}
+{{- include "common.warnings.modifiedImages" (dict "images" (list .Values.image) "context" $) }}
+{{- include "common.errors.insecureImages" (dict "images" (list .Values.image) "context" $) }}
