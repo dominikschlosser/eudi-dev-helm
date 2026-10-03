@@ -15,7 +15,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -63,7 +63,7 @@ jobs:
         # chart changes for the next eudi-dev release are tested before it ships.
         image: [release, main]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: azure/setup-helm@v4
         with:
@@ -73,7 +73,7 @@ jobs:
         with:
           install_only: true
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: matrix.image == 'main'
         with:
           repository: dominikschlosser/eudi-dev
