@@ -1,0 +1,10 @@
+# CI deploys PostgreSQL as the service "postgres" in the default namespace.
+storage:
+  type: postgresql
+externalDatabase:
+  host: postgres.default.svc.cluster.local
+  password: eudi
+  sslMode: disable
+replicaCount: 2
+service:
+  sessionAffinity: ClientIP

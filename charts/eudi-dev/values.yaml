@@ -1,0 +1,787 @@
+# Copyright Dominik Schlosser
+# SPDX-License-Identifier: APACHE-2.0
+
+## @section Global parameters
+## Global Docker image parameters
+## Please, note that this will override the image parameters, including dependencies, configured to use the global value
+## Current available global Docker image parameters: imageRegistry, imagePullSecrets and storageClass
+
+## @param global.imageRegistry Global Docker image registry
+## @param global.imagePullSecrets Global Docker registry secret names as an array
+## @param global.defaultStorageClass Global default StorageClass for Persistent Volume(s)
+##
+global:
+  imageRegistry: ""
+  ## E.g.
+  ## imagePullSecrets:
+  ##   - myRegistryKeySecretName
+  ##
+  imagePullSecrets: []
+  defaultStorageClass: ""
+  ## Security parameters
+  ##
+  security:
+    ## @param global.security.allowInsecureImages Allows skipping image verification
+    ##
+    allowInsecureImages: false
+  ## Compatibility adaptations for Kubernetes platforms
+  ##
+  compatibility:
+    ## Compatibility adaptations for Openshift
+    ##
+    openshift:
+      ## @param global.compatibility.openshift.adaptSecurityContext Adapt the securityContext sections of the deployment to make them compatible with Openshift restricted-v2 SCC: remove runAsUser, runAsGroup and fsGroup and let the platform use their allowed default IDs. Possible values: auto (apply if the detected running cluster is Openshift), force (perform the adaptation always), disabled (do not perform adaptation)
+      ##
+      adaptSecurityContext: auto
+
+## @section Common parameters
+
+## @param kubeVersion Override Kubernetes version
+##
+kubeVersion: ""
+## @param nameOverride String to partially override common.names.name
+##
+nameOverride: ""
+## @param fullnameOverride String to fully override common.names.fullname
+##
+fullnameOverride: ""
+## @param namespaceOverride String to fully override common.names.namespace
+##
+namespaceOverride: ""
+## @param commonLabels Labels to add to all deployed objects
+##
+commonLabels: {}
+## @param commonAnnotations Annotations to add to all deployed objects
+##
+commonAnnotations: {}
+## @param clusterDomain Kubernetes cluster domain name
+##
+clusterDomain: cluster.local
+## @param extraDeploy Array of extra objects to deploy with the release (evaluated as a template)
+## Use it for resources this chart does not create, such as an Istio VirtualService.
+##
+extraDeploy: []
+## Enable diagnostic mode in the deployment
+##
+diagnosticMode:
+  ## @param diagnosticMode.enabled Enable diagnostic mode (all probes will be disabled and the command will be overridden)
+  ##
+  enabled: false
+  ## @param diagnosticMode.command Command to override all containers in the deployment
+  ##
+  command:
+    - sleep
+  ## @param diagnosticMode.args Args to override all containers in the deployment
+  ##
+  args:
+    - infinity
+
+## @section eudi-dev parameters
+
+## eudi-dev image
+## ref: https://github.com/dominikschlosser/eudi-dev/pkgs/container/eudi-dev
+## @param image.registry eudi-dev image registry
+## @param image.repository eudi-dev image repository
+## @param image.tag eudi-dev image tag (immutable tags are recommended)
+## @param image.digest eudi-dev image digest in the way sha256:aa.... Please note this parameter, if set, will override the tag
+## @param image.pullPolicy eudi-dev image pull policy
+## @param image.pullSecrets eudi-dev image pull secrets
+##
+image:
+  registry: ghcr.io
+  repository: dominikschlosser/eudi-dev
+  tag: v2.5.1
+  digest: ""
+  ## Specify a imagePullPolicy
+  ## ref: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
+  ##
+  pullPolicy: IfNotPresent
+  ## Optionally specify an array of imagePullSecrets.
+  ## Secrets must be manually created in the namespace.
+  ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
+  ## e.g:
+  ## pullSecrets:
+  ##   - myRegistryKeySecretName
+  ##
+  pullSecrets: []
+## @param baseURL Public URL of the wallet, such as https://eudi.example.com or https://example.com/some/context. Empty: the ingress URL when the ingress is enabled, otherwise the in-cluster service URL
+## The wallet builds all URLs in credentials, metadata and requests from it.
+## A path prefix needs eudi-dev 2.6.0 or later. Use an https URL behind an ingress. With an http URL, the wallet serves its issuer on a separate port that the ingress does not route.
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/reverse-proxy.md
+##
+baseURL: ""
+## @param autoAccept Approve issuance and presentation requests without a consent prompt (`--auto-accept`)
+##
+autoAccept: true
+## @param generatePID Generate the default PID credentials on start (`--pid`)
+##
+generatePID: true
+## @param validationMode Validation mode: `debug` reports problems and continues, `strict` aborts the flow (`--mode`)
+##
+validationMode: debug
+## Public demo profile
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/public-demo.md
+##
+demo:
+  ## @param demo.enabled Run the hardened public demo profile (`--demo`)
+  ##
+  enabled: false
+  ## @param demo.reset Schedule for resetting the demo to its initial state, such as `1h` or `00:00 Europe/Berlin` (`--demo-reset`). Empty: the eudi-dev default
+  ##
+  reset: ""
+## Where the wallet keeps its state
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet.md#storage-backends
+##
+storage:
+  ## @param storage.type Storage backend: `memory` (lost on restart), `file` (on the volume, see `persistence`) or `postgresql` (see `externalDatabase`)
+  ##
+  type: memory
+## Seed for the wallet's keys
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet.md#seeded-keys
+##
+seed:
+  ## @param seed.value Seed for deriving the wallet's keys. `auto` uses the public seed `eudi-dev` with memory storage and random keys otherwise. Empty: random keys
+  ## Pods with the same seed share the same CA, so verifiers keep trusting it across restarts.
+  ## The seed `eudi-dev` is public. Anyone can derive keys from it.
+  ##
+  value: auto
+  ## @param seed.existingSecret Name of an existing secret with the seed (`seed.value` is then ignored)
+  ##
+  existingSecret: ""
+  ## @param seed.existingSecretKey Key of the seed in `seed.existingSecret`
+  ##
+  existingSecretKey: seed
+## Certificate checks for outbound HTTPS requests
+##
+tls:
+  ## @param tls.verify Verify issuer and verifier certificates: `true`, `false`, or empty for the validation mode default (`--tls-verify`)
+  ##
+  verify: ""
+  ## @param tls.existingCASecret Name of an existing secret with PEM CA certificates to trust in addition to the system ones (`--tls-ca`)
+  ##
+  existingCASecret: ""
+  ## @param tls.existingCASecretKey Key of the CA bundle in `tls.existingCASecret`
+  ##
+  existingCASecretKey: ca.crt
+## Forward proxy for requests to issuers and verifiers
+##
+outboundProxy:
+  ## @param outboundProxy.httpsProxy Proxy for `https://` URLs (`HTTPS_PROXY`)
+  ##
+  httpsProxy: ""
+  ## @param outboundProxy.httpProxy Proxy for `http://` URLs (`HTTP_PROXY`)
+  ##
+  httpProxy: ""
+  ## @param outboundProxy.noProxy Comma separated hosts to connect to directly (`NO_PROXY`)
+  ##
+  noProxy: ""
+## @param extraArgs Extra arguments for `eudi wallet serve`
+## e.g:
+## extraArgs:
+##   - --haip
+##   - --preferred-format=dc+sd-jwt
+##
+extraArgs: []
+## @param command Override the default container command (useful when using custom images)
+##
+command: []
+## @param args Override the default container args (useful when using custom images)
+##
+args: []
+## @param extraEnvVars Array with extra environment variables to add to the eudi-dev container
+## e.g:
+## extraEnvVars:
+##   - name: EUDI_REMOTE_TIMEOUT
+##     value: "30s"
+##
+extraEnvVars: []
+## @param extraEnvVarsCM Name of existing ConfigMap containing extra env vars for the eudi-dev container
+##
+extraEnvVarsCM: ""
+## @param extraEnvVarsSecret Name of existing Secret containing extra env vars for the eudi-dev container
+##
+extraEnvVarsSecret: ""
+
+## @section eudi-dev deployment parameters
+
+## @param replicaCount Number of eudi-dev replicas. More than one needs `storage.type=postgresql`, and each browser flow must stay on one pod (see `service.sessionAffinity`)
+##
+replicaCount: 1
+## @param containerPorts.http eudi-dev HTTP container port
+## The wallet serves its own issuer over HTTPS on the next port when the base URL is http.
+##
+containerPorts:
+  http: 8085
+## @param extraContainerPorts Optionally specify extra list of additional ports for eudi-dev containers
+## e.g:
+## extraContainerPorts:
+##   - name: myservice
+##     containerPort: 9090
+##
+extraContainerPorts: []
+## Configure extra options for eudi-dev containers' liveness, readiness and startup probes
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-probes/#configure-probes
+## @param livenessProbe.enabled Enable livenessProbe on eudi-dev containers
+## @param livenessProbe.initialDelaySeconds Initial delay seconds for livenessProbe
+## @param livenessProbe.periodSeconds Period seconds for livenessProbe
+## @param livenessProbe.timeoutSeconds Timeout seconds for livenessProbe
+## @param livenessProbe.failureThreshold Failure threshold for livenessProbe
+## @param livenessProbe.successThreshold Success threshold for livenessProbe
+##
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+## @param readinessProbe.enabled Enable readinessProbe on eudi-dev containers
+## @param readinessProbe.initialDelaySeconds Initial delay seconds for readinessProbe
+## @param readinessProbe.periodSeconds Period seconds for readinessProbe
+## @param readinessProbe.timeoutSeconds Timeout seconds for readinessProbe
+## @param readinessProbe.failureThreshold Failure threshold for readinessProbe
+## @param readinessProbe.successThreshold Success threshold for readinessProbe
+##
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+## @param startupProbe.enabled Enable startupProbe on eudi-dev containers
+## @param startupProbe.initialDelaySeconds Initial delay seconds for startupProbe
+## @param startupProbe.periodSeconds Period seconds for startupProbe
+## @param startupProbe.timeoutSeconds Timeout seconds for startupProbe
+## @param startupProbe.failureThreshold Failure threshold for startupProbe
+## @param startupProbe.successThreshold Success threshold for startupProbe
+##
+startupProbe:
+  enabled: false
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 5
+  failureThreshold: 30
+  successThreshold: 1
+## @param customLivenessProbe Custom livenessProbe that overrides the default one
+##
+customLivenessProbe: {}
+## @param customReadinessProbe Custom readinessProbe that overrides the default one
+##
+customReadinessProbe: {}
+## @param customStartupProbe Custom startupProbe that overrides the default one
+##
+customStartupProbe: {}
+## eudi-dev resource requests and limits
+## ref: https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+## @param resourcesPreset Set container resources according to one common preset (allowed values: none, nano, micro, small, medium, large, xlarge, 2xlarge). This is ignored if resources is set (resources is recommended for production).
+## More information: https://github.com/bitnami/charts/blob/main/bitnami/common/templates/_resources.tpl#L15
+##
+resourcesPreset: "micro"
+## @param resources Set container requests and limits for different resources like CPU or memory (essential for production workloads)
+## Example:
+## resources:
+##   requests:
+##     cpu: 2
+##     memory: 512Mi
+##   limits:
+##     cpu: 3
+##     memory: 1024Mi
+##
+resources: {}
+## Configure Pods Security Context
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod
+## @param podSecurityContext.enabled Enabled eudi-dev pods' Security Context
+## @param podSecurityContext.fsGroupChangePolicy Set filesystem group change policy
+## @param podSecurityContext.sysctls Set kernel settings using the sysctl interface
+## @param podSecurityContext.supplementalGroups Set filesystem extra groups
+## @param podSecurityContext.fsGroup Set eudi-dev pod's Security Context fsGroup
+##
+podSecurityContext:
+  enabled: true
+  fsGroupChangePolicy: Always
+  sysctls: []
+  supplementalGroups: []
+  fsGroup: 1000
+## Configure Container Security Context
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container
+## @param containerSecurityContext.enabled Enabled containers' Security Context
+## @param containerSecurityContext.seLinuxOptions [object,nullable] Set SELinux options in container
+## @param containerSecurityContext.runAsUser Set containers' Security Context runAsUser
+## @param containerSecurityContext.runAsGroup Set containers' Security Context runAsGroup
+## @param containerSecurityContext.runAsNonRoot Set container's Security Context runAsNonRoot
+## @param containerSecurityContext.privileged Set container's Security Context privileged
+## @param containerSecurityContext.readOnlyRootFilesystem Set container's Security Context readOnlyRootFilesystem
+## @param containerSecurityContext.allowPrivilegeEscalation Set container's Security Context allowPrivilegeEscalation
+## @param containerSecurityContext.capabilities.drop List of capabilities to be dropped
+## @param containerSecurityContext.seccompProfile.type Set container's Security Context seccomp profile
+##
+containerSecurityContext:
+  enabled: true
+  seLinuxOptions: {}
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  privileged: false
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop: ["ALL"]
+  seccompProfile:
+    type: "RuntimeDefault"
+## @param automountServiceAccountToken Mount Service Account token in pod
+##
+automountServiceAccountToken: false
+## @param hostAliases eudi-dev pods host aliases
+## https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
+##
+hostAliases: []
+## @param podLabels Extra labels for eudi-dev pods
+## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+##
+podLabels: {}
+## @param podAnnotations Annotations for eudi-dev pods
+## ref: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
+##
+podAnnotations: {}
+## @param podAffinityPreset Pod affinity preset. Ignored if `affinity` is set. Allowed values: `soft` or `hard`
+## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+##
+podAffinityPreset: ""
+## @param podAntiAffinityPreset Pod anti-affinity preset. Ignored if `affinity` is set. Allowed values: `soft` or `hard`
+## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity
+##
+podAntiAffinityPreset: soft
+## Node affinity preset
+## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity
+##
+nodeAffinityPreset:
+  ## @param nodeAffinityPreset.type Node affinity preset type. Ignored if `affinity` is set. Allowed values: `soft` or `hard`
+  ##
+  type: ""
+  ## @param nodeAffinityPreset.key Node label key to match. Ignored if `affinity` is set
+  ##
+  key: ""
+  ## @param nodeAffinityPreset.values Node label values to match. Ignored if `affinity` is set
+  ## E.g.
+  ## values:
+  ##   - e2e-az1
+  ##   - e2e-az2
+  ##
+  values: []
+## @param affinity Affinity for eudi-dev pods assignment
+## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
+## NOTE: `podAffinityPreset`, `podAntiAffinityPreset`, and `nodeAffinityPreset` will be ignored when it's set
+##
+affinity: {}
+## @param nodeSelector Node labels for eudi-dev pods assignment
+## ref: https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
+##
+nodeSelector: {}
+## @param tolerations Tolerations for eudi-dev pods assignment
+## ref: https://kubernetes.io/docs/concepts/configuration/taint-and-toleration/
+##
+tolerations: []
+## @param updateStrategy.type eudi-dev deployment strategy type
+## ref: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#strategy
+## Recreate keeps two pods from using the same volume or wallet state at once.
+##
+updateStrategy:
+  type: Recreate
+## @param revisionHistoryLimit The number of old history to retain to allow rollback
+##
+revisionHistoryLimit: 10
+## @param priorityClassName eudi-dev pods' priorityClassName
+##
+priorityClassName: ""
+## @param topologySpreadConstraints Topology Spread Constraints for pod assignment spread across your cluster among failure-domains. Evaluated as a template
+## Ref: https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/#spread-constraints-for-pods
+##
+topologySpreadConstraints: []
+## @param schedulerName Name of the k8s scheduler (other than default) for eudi-dev pods
+## ref: https://kubernetes.io/docs/tasks/administer-cluster/configure-multiple-schedulers/
+##
+schedulerName: ""
+## @param terminationGracePeriodSeconds Seconds eudi-dev pod needs to terminate gracefully
+## ref: https://kubernetes.io/docs/concepts/workloads/pods/pod/#termination-of-pods
+##
+terminationGracePeriodSeconds: ""
+## @param lifecycleHooks for the eudi-dev container(s) to automate configuration before or after startup
+##
+lifecycleHooks: {}
+## @param extraVolumes Optionally specify extra list of additional volumes for the eudi-dev pod(s)
+##
+extraVolumes: []
+## @param extraVolumeMounts Optionally specify extra list of additional volumeMounts for the eudi-dev container(s)
+##
+extraVolumeMounts: []
+## @param sidecars Add additional sidecar containers to the eudi-dev pod(s)
+## e.g:
+## sidecars:
+##   - name: your-image-name
+##     image: your-image
+##     imagePullPolicy: Always
+##     ports:
+##       - name: portname
+##         containerPort: 1234
+##
+sidecars: []
+## @param initContainers Add additional init containers to the eudi-dev pod(s)
+## ref: https://kubernetes.io/docs/concepts/workloads/pods/init-containers/
+##
+initContainers: []
+## Pod Disruption Budget configuration
+## ref: https://kubernetes.io/docs/tasks/run-application/configure-pdb
+## @param pdb.create Enable/disable a Pod Disruption Budget creation
+## @param pdb.minAvailable Minimum number/percentage of pods that should remain scheduled
+## @param pdb.maxUnavailable Maximum number/percentage of pods that may be made unavailable. Defaults to `1` if both `pdb.minAvailable` and `pdb.maxUnavailable` are empty.
+##
+pdb:
+  create: true
+  minAvailable: ""
+  maxUnavailable: ""
+
+## @section Traffic exposure parameters
+
+## eudi-dev service parameters
+##
+service:
+  ## @param service.type eudi-dev service type
+  ##
+  type: ClusterIP
+  ## @param service.ports.http eudi-dev service HTTP port
+  ## @param service.ports.issuer eudi-dev service port of the wallet's own HTTPS issuer (used when the base URL is http)
+  ## Keep both equal to the container ports when the base URL is the in-cluster service URL, because the wallet advertises its container ports.
+  ##
+  ports:
+    http: 8085
+    issuer: 8086
+  ## Node ports to expose
+  ## @param service.nodePorts.http Node port for HTTP
+  ## @param service.nodePorts.issuer Node port for the issuer
+  ## NOTE: choose port between <30000-32767>
+  ##
+  nodePorts:
+    http: ""
+    issuer: ""
+  ## @param service.clusterIP eudi-dev service Cluster IP
+  ## e.g.:
+  ## clusterIP: None
+  ##
+  clusterIP: ""
+  ## @param service.loadBalancerIP eudi-dev service Load Balancer IP
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#type-loadbalancer
+  ##
+  loadBalancerIP: ""
+  ## @param service.loadBalancerSourceRanges eudi-dev service Load Balancer sources
+  ## ref: https://kubernetes.io/docs/tasks/access-application-cluster/configure-cloud-provider-firewall/#restrict-access-for-loadbalancer-service
+  ## e.g:
+  ## loadBalancerSourceRanges:
+  ##   - 10.10.10.0/24
+  ##
+  loadBalancerSourceRanges: []
+  ## @param service.externalTrafficPolicy eudi-dev service external traffic policy
+  ## ref http://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#preserving-the-client-source-ip
+  ##
+  externalTrafficPolicy: Cluster
+  ## @param service.annotations Additional custom annotations for eudi-dev service
+  ##
+  annotations: {}
+  ## @param service.extraPorts Extra ports to expose in eudi-dev service (normally used with the `sidecars` value)
+  ##
+  extraPorts: []
+  ## @param service.sessionAffinity Control where client requests go, to the same pod or round-robin
+  ## Values: ClientIP or None
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/service/
+  ##
+  sessionAffinity: None
+  ## @param service.sessionAffinityConfig Additional settings for the sessionAffinity
+  ## sessionAffinityConfig:
+  ##   clientIP:
+  ##     timeoutSeconds: 300
+  ##
+  sessionAffinityConfig: {}
+## Network Policies
+## Ref: https://kubernetes.io/docs/concepts/services-networking/network-policies/
+##
+networkPolicy:
+  ## @param networkPolicy.enabled Specifies whether a NetworkPolicy should be created
+  ##
+  enabled: true
+  ## @param networkPolicy.allowExternal Don't require server label for connections
+  ## The Policy model to apply. When set to false, only pods with the correct
+  ## server label will have network access to the ports server is listening
+  ## on. When true, server will accept connections from any source
+  ## (with the correct destination port).
+  ##
+  allowExternal: true
+  ## @param networkPolicy.allowExternalEgress Allow the pod to access any range of port and all destinations.
+  ## The wallet fetches issuer metadata, request objects and status lists from anywhere.
+  ##
+  allowExternalEgress: true
+  ## @param networkPolicy.extraIngress [array] Add extra ingress rules to the NetworkPolicy
+  ## e.g:
+  ## extraIngress:
+  ##   - ports:
+  ##       - port: 1234
+  ##     from:
+  ##       - podSelector:
+  ##           - matchLabels:
+  ##               - role: frontend
+  ##
+  extraIngress: []
+  ## @param networkPolicy.extraEgress [array] Add extra egress rules to the NetworkPolicy (ignored if allowExternalEgress=true)
+  ## e.g:
+  ## extraEgress:
+  ##   - ports:
+  ##       - port: 1234
+  ##     to:
+  ##       - podSelector:
+  ##           - matchLabels:
+  ##               - role: frontend
+  ##
+  extraEgress: []
+  ## @param networkPolicy.ingressNSMatchLabels [object] Labels to match to allow traffic from other namespaces
+  ## @param networkPolicy.ingressNSPodMatchLabels [object] Pod labels to match to allow traffic from other namespaces
+  ##
+  ingressNSMatchLabels: {}
+  ingressNSPodMatchLabels: {}
+## Configure the ingress resource that allows you to access the eudi-dev installation
+## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/
+##
+ingress:
+  ## @param ingress.enabled Enable ingress record generation for eudi-dev
+  ##
+  enabled: false
+  ## @param ingress.pathType Ingress path type
+  ##
+  pathType: Prefix
+  ## @param ingress.apiVersion Force Ingress API version (automatically detected if not set)
+  ##
+  apiVersion: ""
+  ## @param ingress.hostname Default host for the ingress record
+  ##
+  hostname: eudi-dev.local
+  ## @param ingress.ingressClassName IngressClass that will be be used to implement the Ingress (Kubernetes 1.18+)
+  ## This is supported in Kubernetes 1.18+ and required if you have more than one IngressClass marked as the default for your cluster .
+  ## ref: https://kubernetes.io/blog/2020/04/02/improvements-to-the-ingress-api-in-kubernetes-1.18/
+  ##
+  ingressClassName: ""
+  ## @param ingress.path Ingress path. Empty: the path of `baseURL`, or `/`
+  ##
+  path: ""
+  ## @param ingress.wellKnownPaths Add routes for the issuer metadata paths at the host root when the wallet is served under a path prefix
+  ## The specs put issuer metadata at /.well-known/<name>/<prefix>, outside the path prefix.
+  ##
+  wellKnownPaths: true
+  ## @param ingress.annotations Additional annotations for the Ingress resource. To enable certificate autogeneration, place here your cert-manager annotations.
+  ## Use this parameter to set the required annotations for cert-manager, see
+  ## ref: https://cert-manager.io/docs/usage/ingress/#supported-annotations
+  ## e.g:
+  ## annotations:
+  ##   kubernetes.io/ingress.class: nginx
+  ##   cert-manager.io/cluster-issuer: cluster-issuer-name
+  ##
+  annotations: {}
+  ## @param ingress.tls Enable TLS configuration for the host defined at `ingress.hostname` parameter
+  ## TLS certificates will be retrieved from a TLS secret with name: `{{- printf "%s-tls" .Values.ingress.hostname }}`
+  ## You can:
+  ##   - Use the `ingress.secrets` parameter to create this TLS secret
+  ##   - Rely on cert-manager to create it by setting the corresponding annotations
+  ##   - Rely on Helm to create self-signed certificates by setting `ingress.selfSigned=true`
+  ##
+  tls: false
+  ## @param ingress.selfSigned Create a TLS secret for this ingress record using self-signed certificates generated by Helm
+  ##
+  selfSigned: false
+  ## @param ingress.extraHosts An array with additional hostname(s) to be covered with the ingress record
+  ## e.g:
+  ## extraHosts:
+  ##   - name: eudi-dev.local
+  ##     path: /
+  ##
+  extraHosts: []
+  ## @param ingress.extraPaths An array with additional arbitrary paths that may need to be added to the ingress under the main host
+  ## e.g:
+  ## extraPaths:
+  ## - path: /*
+  ##   backend:
+  ##     serviceName: ssl-redirect
+  ##     servicePort: use-annotation
+  ##
+  extraPaths: []
+  ## @param ingress.extraTls TLS configuration for additional hostname(s) to be covered with this ingress record
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/#tls
+  ## e.g:
+  ## extraTls:
+  ## - hosts:
+  ##     - eudi-dev.local
+  ##   secretName: eudi-dev.local-tls
+  ##
+  extraTls: []
+  ## @param ingress.secrets Custom TLS certificates as secrets
+  ## NOTE: 'key' and 'certificate' are expected in PEM format
+  ## NOTE: 'name' should line up with a 'secretName' set further up
+  ## If it is not set and you're using cert-manager, this is unneeded, as it will create a secret for you with valid certificates
+  ## If it is not set and you're NOT using cert-manager either, self-signed certificates will be created valid for 365 days
+  ## It is also possible to create and manage the certificates outside of this helm chart
+  ## Please see README.md for more information
+  ## e.g:
+  ## secrets:
+  ##   - name: eudi-dev.local-tls
+  ##     key: |-
+  ##       -----BEGIN RSA PRIVATE KEY-----
+  ##       ...
+  ##       -----END RSA PRIVATE KEY-----
+  ##     certificate: |-
+  ##       -----BEGIN CERTIFICATE-----
+  ##       ...
+  ##       -----END CERTIFICATE-----
+  ##
+  secrets: []
+  ## @param ingress.extraRules Additional rules to be covered with this ingress record
+  ## ref: https://kubernetes.io/docs/concepts/services-networking/ingress/#ingress-rules
+  ## e.g:
+  ## extraRules:
+  ## - host: example.local
+  ##     http:
+  ##       path: /
+  ##       backend:
+  ##         service:
+  ##           name: example-svc
+  ##           port:
+  ##             name: http
+  ##
+  extraRules: []
+## Gateway API HTTP routing parameters
+## ref: https://gateway-api.sigs.k8s.io/guides/http-routing/
+##
+httpRoute:
+  ## @param httpRoute.enabled Enable HTTPRoute generation for eudi-dev
+  ##
+  enabled: false
+  ## @param httpRoute.annotations Additional annotations for the HTTPRoute resource
+  ##
+  annotations: {}
+  ## @param httpRoute.labels Additional labels for the HTTPRoute resource
+  ##
+  labels: {}
+  ## @param httpRoute.parentRefs Gateways the HTTPRoute is attached to. If unspecified, it'll be attached to Gateway named 'gateway' in the same namespace.
+  ## e.g:
+  ## parentRefs:
+  ##   - name: my-gateway
+  ##     sectionName: http
+  ##     namespace: default
+  ##
+  parentRefs: []
+  ## @param httpRoute.hostnames [array] List of hostnames matching HTTP header
+  ##
+  hostnames:
+    - eudi-dev.local
+  ## @param httpRoute.matches [array] Path matches for the eudi-dev backend. Empty: the path of `baseURL`, or `/`
+  ##
+  matches: []
+  ## @param httpRoute.wellKnownPaths Add routes for the issuer metadata paths at the host root when the wallet is served under a path prefix
+  ##
+  wellKnownPaths: true
+  ## @param httpRoute.filters List of filter rules applied to the HTTPRoute for the default svc backend reference
+  ##
+  filters: []
+  ## @param httpRoute.extraRules List of extra rules applied to the HTTPRoute
+  ##
+  extraRules: []
+
+## @section Persistence parameters
+
+## Volume for `storage.type=file`. Without it, the wallet keeps its files in an emptyDir that is lost with the pod.
+## ref: https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+##
+persistence:
+  ## @param persistence.enabled Enable persistence using Persistent Volume Claims
+  ##
+  enabled: false
+  ## @param persistence.mountPath Path to mount the volume at.
+  ##
+  mountPath: /home/app/.eudi-dev
+  ## @param persistence.storageClass Storage class of backing PVC
+  ## If defined, storageClassName: <storageClass>
+  ## If set to "-", storageClassName: "", which disables dynamic provisioning
+  ## If undefined (the default) or set to null, no storageClassName spec is
+  ##   set, choosing the default provisioner.  (gp2 on AWS, standard on
+  ##   GKE, AWS & OpenStack)
+  ##
+  storageClass: ""
+  ## @param persistence.annotations Persistent Volume Claim annotations
+  ##
+  annotations: {}
+  ## @param persistence.accessModes Persistent Volume Access Modes
+  ##
+  accessModes:
+    - ReadWriteOnce
+  ## @param persistence.size Size of data volume
+  ##
+  size: 1Gi
+  ## @param persistence.existingClaim The name of an existing PVC to use for persistence
+  ##
+  existingClaim: ""
+  ## @param persistence.selector Selector to match an existing Persistent Volume for eudi-dev data PVC
+  ## If set, the PVC can't have a PV dynamically provisioned for it
+  ## E.g.
+  ## selector:
+  ##   matchLabels:
+  ##     app: my-app
+  ##
+  selector: {}
+  ## @param persistence.dataSource Custom PVC data source
+  ##
+  dataSource: {}
+
+## @section Database parameters
+
+## PostgreSQL database for `storage.type=postgresql`. This chart does not deploy one.
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/docker.md#shared-database
+##
+externalDatabase:
+  ## @param externalDatabase.host Database host
+  ##
+  host: ""
+  ## @param externalDatabase.port Database port number
+  ##
+  port: 5432
+  ## @param externalDatabase.user Database user
+  ##
+  user: eudi
+  ## @param externalDatabase.database Database name
+  ##
+  database: eudi
+  ## @param externalDatabase.password Password for the database user. Ignored if `externalDatabase.existingSecret` is set
+  ##
+  password: ""
+  ## @param externalDatabase.existingSecret Name of an existing secret with the database password
+  ##
+  existingSecret: ""
+  ## @param externalDatabase.existingSecretPasswordKey Key of the password in `externalDatabase.existingSecret`
+  ##
+  existingSecretPasswordKey: password
+  ## @param externalDatabase.sslMode PostgreSQL `sslmode`, such as `disable`, `require` or `verify-full`
+  ##
+  sslMode: prefer
+
+## @section Other parameters
+
+## ServiceAccount configuration
+##
+serviceAccount:
+  ## @param serviceAccount.create Specifies whether a ServiceAccount should be created
+  ##
+  create: true
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the common.names.fullname template
+  ##
+  name: ""
+  ## @param serviceAccount.annotations Additional Service Account annotations (evaluated as a template)
+  ##
+  annotations: {}
+  ## @param serviceAccount.automountServiceAccountToken Automount service account token for the server service account
+  ##
+  automountServiceAccountToken: false
