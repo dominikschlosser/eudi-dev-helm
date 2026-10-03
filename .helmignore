@@ -11,3 +11,12 @@
 *~
 # Test values for chart-testing
 ci/
+# Repository files that are not part of the chart
+.github/
+test/
+dist/
+# eudi-dev checkout of the CI e2e job
+eudi-dev/
+Makefile
+ct.yaml
+CONTRIBUTING.md

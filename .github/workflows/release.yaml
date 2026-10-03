@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "charts/**"
+      - Chart.yaml
   workflow_dispatch:
 
 permissions:
@@ -30,22 +30,20 @@ jobs:
         run: echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io --username "${{ github.actor }}" --password-stdin
 
       # A chart version is published once. Its git tag marks it as released.
-      - name: Publish new chart versions
+      - name: Publish a new chart version
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           registry="oci://ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/charts"
-          for chart in charts/*/; do
-            name=$(helm show chart "$chart" | sed -n 's/^name: //p')
-            version=$(helm show chart "$chart" | sed -n 's/^version: //p')
-            tag="$name-$version"
-            if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-              echo "$tag is already released"
-              continue
-            fi
-            helm dependency build "$chart"
-            helm package "$chart" --destination dist
-            helm push "dist/$tag.tgz" "$registry"
-            gh release create "$tag" "dist/$tag.tgz" --title "$tag" \
-              --notes "Install with \`helm install my-release $registry/$name --version $version\`. See [the changelog](charts/$name/CHANGELOG.md)."
-          done
+          name=$(helm show chart . | sed -n 's/^name: //p')
+          version=$(helm show chart . | sed -n 's/^version: //p')
+          tag="$name-$version"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "$tag is already released"
+            exit 0
+          fi
+          helm dependency build .
+          helm package . --destination dist
+          helm push "dist/$tag.tgz" "$registry"
+          gh release create "$tag" "dist/$tag.tgz" --title "$tag" \
+            --notes "Install with \`helm install my-release $registry/$name --version $version\`. See [the changelog](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/blob/$tag/CHANGELOG.md)."

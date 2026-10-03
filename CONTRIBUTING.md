@@ -1,5 +1,11 @@
 # Contributing
 
+## Layout
+
+The repository is the chart: `Chart.yaml`, `values.yaml`, `templates/` and `README.md` sit at the root. `.helmignore` keeps the repository files (`.github/`, `test/`, `Makefile`, ...) out of the package. Add new repository files there too.
+
+Pull requests that change the packaged chart (`Chart.yaml`, `values.yaml`, `templates/`, `README.md`, ...) must raise `version` in `Chart.yaml`. Changes to CI, tests or this file need no new version.
+
 ## Development
 
 Requirements: Helm 3.8+, [chart-testing](https://github.com/helm/chart-testing), Node.js (for the README generator), Python 3, and [kind](https://kind.sigs.k8s.io) with Docker for the tests.
@@ -10,7 +16,7 @@ make readme   # regenerate the parameter tables from values.yaml
 make test     # install the chart into a new kind cluster and check the wallet
 ```
 
-The parameter tables in the chart README come from the `@param` comments in `values.yaml`. Run `make readme` after changing values. CI fails when the README is out of date.
+The parameter tables in `README.md` come from the `@param` comments in `values.yaml`. Run `make readme` after changing values. CI fails when the README is out of date.
 
 ## Tests
 
@@ -35,8 +41,8 @@ CI lints the chart, checks the README, and runs the tests twice: with the image 
 
 ## Release
 
-1. Raise `version` in `charts/eudi-dev/Chart.yaml` (and `appVersion` and `image.tag` for a new eudi-dev release). Once the chart ships eudi-dev 2.6.0 or later, set `PREFIX_TESTS=true` for the release image in `.github/workflows/ci.yaml` too.
-2. Add an entry to `charts/eudi-dev/CHANGELOG.md`.
+1. Raise `version` in `Chart.yaml` (and `appVersion` and `image.tag` for a new eudi-dev release). Once the chart ships eudi-dev 2.6.0 or later, set `PREFIX_TESTS=true` for the release image in `.github/workflows/ci.yaml` too.
+2. Add an entry to `CHANGELOG.md`.
 3. Merge to `main`.
 
-The release workflow pushes every chart version that has no git tag yet to `oci://ghcr.io/dominikschlosser/charts` and creates a GitHub release named `<chart>-<version>` with the packaged chart.
+The release workflow pushes a chart version that has no git tag yet to `oci://ghcr.io/dominikschlosser/charts` and creates a GitHub release named `eudi-dev-<version>` with the packaged chart.
