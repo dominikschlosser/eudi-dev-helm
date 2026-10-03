@@ -131,6 +131,82 @@ it never needs URL escaping.
 {{- end -}}
 
 {{/*
+Return issuance.vciVersion as a string. YAML reads an unquoted 1.0 as a number.
+*/}}
+{{- define "eudi-dev.vciVersion" -}}
+{{- $version := .Values.issuance.vciVersion -}}
+{{- if kindIs "float64" $version -}}
+    {{- printf "%.1f" $version -}}
+{{- else -}}
+    {{- toString $version -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the name of the ConfigMap the chart creates for the imprint, the demo verifier
+trust anchors, the credential templates and the credentials to import
+*/}}
+{{- define "eudi-dev.configMapName" -}}
+{{- printf "%s-files" (include "common.names.fullname" .) | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Return true when the chart creates its ConfigMap
+*/}}
+{{- define "eudi-dev.createConfigMap" -}}
+{{- if or (and .Values.imprint.html (not .Values.imprint.existingConfigMap)) (and .Values.demoVerifier.trustAnchors (not .Values.demoVerifier.existingTrustAnchorsSecret)) (and .Values.credentialTemplates.templates (not .Values.credentialTemplates.existingConfigMap)) (and .Values.importCredentials.credentials (not .Values.importCredentials.existingConfigMap)) -}}
+    {{- true -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the file name of a credential template in the ConfigMap
+*/}}
+{{- define "eudi-dev.templateFileName" -}}
+{{- if or (hasSuffix ".json" .) (hasSuffix ".template" .) -}}
+    {{- . -}}
+{{- else -}}
+    {{- printf "%s.json" . -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the paths of the credentials to import, one per line
+*/}}
+{{- define "eudi-dev.importCredentialPaths" -}}
+{{- $keys := ternary .Values.importCredentials.existingConfigMapKeys (keys .Values.importCredentials.credentials | sortAlpha) (not (empty .Values.importCredentials.existingConfigMap)) -}}
+{{- range $keys }}
+{{ printf "/opt/eudi-dev/credentials/%s" . }}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Return the value of NO_PROXY. In-cluster services never go through the proxy, so a
+wallet with an in-cluster base URL still reaches its own demo issuer and verifier.
+*/}}
+{{- define "eudi-dev.noProxy" -}}
+{{- $hosts := without (splitList "," .Values.outboundProxy.noProxy) "" -}}
+{{- join "," (concat $hosts (list ".svc" (printf ".%s" .Values.clusterDomain))) -}}
+{{- end -}}
+
+{{/*
+Return the ports of the configured proxies, one per line. A proxy URL without a
+scheme uses http, as eudi-dev does.
+*/}}
+{{- define "eudi-dev.proxyPorts" -}}
+{{- $defaults := dict "http" "80" "https" "443" "socks5" "1080" "socks5h" "1080" -}}
+{{- $ports := list -}}
+{{- range list .Values.outboundProxy.httpsProxy .Values.outboundProxy.httpProxy -}}
+{{- if . -}}
+{{- $url := urlParse (ternary . (printf "http://%s" .) (contains "://" .)) -}}
+{{- $port := regexFind "[0-9]+$" (regexFind ":[0-9]+$" $url.host) -}}
+{{- $ports = append $ports (default (get $defaults $url.scheme) $port) -}}
+{{- end -}}
+{{- end -}}
+{{- join "\n" (uniq $ports) -}}
+{{- end -}}
+
+{{/*
 Compile all warnings into a single message and fail on them
 */}}
 {{- define "eudi-dev.validateValues" -}}
@@ -138,6 +214,9 @@ Compile all warnings into a single message and fail on them
 {{- $messages := append $messages (include "eudi-dev.validateValues.storage" .) -}}
 {{- $messages := append $messages (include "eudi-dev.validateValues.replicaCount" .) -}}
 {{- $messages := append $messages (include "eudi-dev.validateValues.validationMode" .) -}}
+{{- $messages := append $messages (include "eudi-dev.validateValues.logFormat" .) -}}
+{{- $messages := append $messages (include "eudi-dev.validateValues.options" .) -}}
+{{- $messages := append $messages (include "eudi-dev.validateValues.importCredentials" .) -}}
 {{- $messages := without $messages "" -}}
 {{- $message := join "\n" $messages -}}
 {{- if $message -}}
@@ -166,5 +245,40 @@ eudi-dev: replicaCount
 {{- if not (has .Values.validationMode (list "debug" "strict")) -}}
 eudi-dev: validationMode
     Invalid validation mode "{{ .Values.validationMode }}". Use debug or strict.
+{{- end -}}
+{{- end -}}
+
+{{- define "eudi-dev.validateValues.logFormat" -}}
+{{- if not (has .Values.logFormat (list "text" "json")) -}}
+eudi-dev: logFormat
+    Invalid log format "{{ .Values.logFormat }}". Use text or json.
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validate the values that eudi-dev accepts from a fixed list
+*/}}
+{{- define "eudi-dev.validateValues.options" -}}
+{{- $options := list
+    (dict "name" "haip" "value" (toString .Values.haip) "allowed" (list "" "true" "false"))
+    (dict "name" "issuance.vciVersion" "value" (include "eudi-dev.vciVersion" .) "allowed" (list "" "1.0" "1.1"))
+    (dict "name" "issuance.keyAttestationLevel" "value" .Values.issuance.keyAttestationLevel "allowed" (list "" "none" "iso_18045_high" "iso_18045_moderate" "iso_18045_enhanced-basic" "iso_18045_basic"))
+    (dict "name" "presentation.sessionTranscript" "value" .Values.presentation.sessionTranscript "allowed" (list "" "oid4vp" "iso"))
+    (dict "name" "presentation.preferredFormat" "value" .Values.presentation.preferredFormat "allowed" (list "" "dc+sd-jwt" "mso_mdoc" "jwt_vc_json"))
+    (dict "name" "demoIssuer.clientAuth" "value" .Values.demoIssuer.clientAuth "allowed" (list "" "required" "optional"))
+-}}
+{{- $messages := list -}}
+{{- range $options -}}
+{{- if not (has .value .allowed) -}}
+{{- $messages = append $messages (printf "eudi-dev: %s\n    Invalid value \"%s\". Use %s, or leave it empty." .name .value (join ", " (without .allowed ""))) -}}
+{{- end -}}
+{{- end -}}
+{{- join "\n" $messages -}}
+{{- end -}}
+
+{{- define "eudi-dev.validateValues.importCredentials" -}}
+{{- if and .Values.importCredentials.existingConfigMap (not .Values.importCredentials.existingConfigMapKeys) -}}
+eudi-dev: importCredentials.existingConfigMapKeys
+    importCredentials.existingConfigMap needs the keys of the credentials to import in importCredentials.existingConfigMapKeys.
 {{- end -}}
 {{- end -}}

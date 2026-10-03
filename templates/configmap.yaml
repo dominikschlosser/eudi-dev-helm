@@ -1,0 +1,34 @@
+{{- /*
+Copyright Dominik Schlosser
+SPDX-License-Identifier: APACHE-2.0
+*/}}
+
+{{- if include "eudi-dev.createConfigMap" . }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "eudi-dev.configMapName" . }}
+  namespace: {{ include "common.names.namespace" . | quote }}
+  labels: {{- include "common.labels.standard" ( dict "customLabels" .Values.commonLabels "context" $ ) | nindent 4 }}
+    app.kubernetes.io/component: wallet
+  {{- if .Values.commonAnnotations }}
+  annotations: {{- include "common.tplvalues.render" ( dict "value" .Values.commonAnnotations "context" $ ) | nindent 4 }}
+  {{- end }}
+data:
+  {{- if and .Values.imprint.html (not .Values.imprint.existingConfigMap) }}
+  imprint.html: {{ .Values.imprint.html | quote }}
+  {{- end }}
+  {{- if and .Values.demoVerifier.trustAnchors (not .Values.demoVerifier.existingTrustAnchorsSecret) }}
+  trust-anchors.pem: {{ .Values.demoVerifier.trustAnchors | quote }}
+  {{- end }}
+  {{- if not .Values.credentialTemplates.existingConfigMap }}
+  {{- range $name, $template := .Values.credentialTemplates.templates }}
+  template-{{ include "eudi-dev.templateFileName" $name }}: {{ $template | toJson | quote }}
+  {{- end }}
+  {{- end }}
+  {{- if not .Values.importCredentials.existingConfigMap }}
+  {{- range $name, $credential := .Values.importCredentials.credentials }}
+  credential-{{ $name }}: {{ $credential | trim | quote }}
+  {{- end }}
+  {{- end }}
+{{- end }}

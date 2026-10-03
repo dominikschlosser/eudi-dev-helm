@@ -8,3 +8,4 @@ externalDatabase:
 replicaCount: 2
 service:
   sessionAffinity: ClientIP
+logFormat: json

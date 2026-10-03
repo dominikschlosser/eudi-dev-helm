@@ -1,0 +1,34 @@
+# Wallet options. test/e2e.sh creates the secrets and the ConfigMap these values
+# reference, and passes the demo verifier trust anchors with --set-file.
+haip: true
+statusList: true
+adhocDisplayImages: true
+issuance:
+  vciVersion: "1.1"
+  clientId: e2e-wallet
+  redirectURI: https://wallet.example.com/callback
+  clientAttestation: true
+  keyAttestationLevel: none
+presentation:
+  sessionTranscript: iso
+  preferredFormat: mso_mdoc
+  requireEncryptedRequest: true
+demoIssuer:
+  clientAuth: optional
+imprint:
+  html: <p>E2E operator, Example Street 1</p>
+holderKey:
+  existingSecret: e2e-holder-key
+issuerKey:
+  existingSecret: e2e-issuer-key
+credentialTemplates:
+  templates:
+    employee-card:
+      format: sdjwt
+      vct: urn:example:employee
+      claims:
+        employee_id: E-1
+importCredentials:
+  existingConfigMap: e2e-credentials
+  existingConfigMapKeys:
+    - employee.sdjwt

@@ -37,6 +37,13 @@ spec:
     - ports:
         - port: {{ .Values.externalDatabase.port }}
     {{- end }}
+    {{- $proxyPorts := include "eudi-dev.proxyPorts" . }}
+    {{- if $proxyPorts }}
+    - ports:
+        {{- range splitList "\n" $proxyPorts }}
+        - port: {{ . }}
+        {{- end }}
+    {{- end }}
     {{- if .Values.networkPolicy.extraEgress }}
     {{- include "common.tplvalues.render" ( dict "value" .Values.networkPolicy.extraEgress "context" $ ) | nindent 4 }}
     {{- end }}

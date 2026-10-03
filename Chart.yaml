@@ -1,11 +1,11 @@
 annotations:
   images: |
     - name: eudi-dev
-      version: 2.5.1
-      image: ghcr.io/dominikschlosser/eudi-dev:v2.5.1
+      version: 2.6.0
+      image: ghcr.io/dominikschlosser/eudi-dev:v2.6.0
   licenses: Apache-2.0
 apiVersion: v2
-appVersion: 2.5.1
+appVersion: 2.6.0
 dependencies:
   - name: common
     repository: oci://registry-1.docker.io/bitnamicharts
@@ -30,4 +30,4 @@ name: eudi-dev
 sources:
   - https://github.com/dominikschlosser/eudi-dev
   - https://github.com/dominikschlosser/eudi-dev-helm
-version: 0.1.0
+version: 0.2.0

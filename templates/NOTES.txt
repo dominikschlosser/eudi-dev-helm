@@ -45,7 +45,11 @@ NOTE: The base URL uses http. The wallet then serves its own issuer over HTTPS o
 {{- end }}
 {{- if include "eudi-dev.basePath" . }}
 
-The wallet is served under the path prefix {{ include "eudi-dev.basePath" . }}. This needs eudi-dev 2.6.0 or later.
+The wallet is served under the path prefix {{ include "eudi-dev.basePath" . }}.
+{{- end }}
+{{- if and .Values.demo.enabled (or .Values.outboundProxy.httpsProxy .Values.outboundProxy.httpProxy) }}
+
+WARNING: demo.enabled with an outbound proxy. The demo blocks fetches to internal networks by checking the address it connects to, which is then the proxy. Requests through the proxy can reach internal hosts.
 {{- end }}
 {{- end }}
 

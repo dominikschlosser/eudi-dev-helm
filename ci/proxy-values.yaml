@@ -1,0 +1,7 @@
+# CI deploys a logging forward proxy as the service "proxy" in the default namespace.
+outboundProxy:
+  httpProxy: http://proxy.default.svc.cluster.local:3128
+  httpsProxy: proxy.default.svc.cluster.local:3128
+  noProxy: internal.example
+networkPolicy:
+  allowExternalEgress: false

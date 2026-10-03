@@ -85,7 +85,6 @@ jobs:
           {
             echo "IMAGE_TAG=main-ci"
             echo "LOAD_IMAGE=ghcr.io/dominikschlosser/eudi-dev:main-ci"
-            echo "PREFIX_TESTS=true"
           } >> "$GITHUB_ENV"
 
       - name: Install the chart and check the wallet

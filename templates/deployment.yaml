@@ -30,6 +30,7 @@ spec:
         app.kubernetes.io/component: wallet
       annotations:
         checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+        checksum/configmap: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- if .Values.podAnnotations }}
         {{- include "common.tplvalues.render" ( dict "value" .Values.podAnnotations "context" $ ) | nindent 8 }}
         {{- end }}
@@ -113,6 +114,60 @@ spec:
             {{- if .Values.tls.existingCASecret }}
             - --tls-ca=/opt/eudi-dev/ca/{{ .Values.tls.existingCASecretKey }}
             {{- end }}
+            {{- if ne (toString .Values.haip) "" }}
+            - --haip={{ .Values.haip }}
+            {{- end }}
+            {{- if .Values.statusList }}
+            - --status-list
+            {{- end }}
+            {{- if .Values.adhocDisplayImages }}
+            - --adhoc-display-images
+            {{- end }}
+            {{- if include "eudi-dev.vciVersion" . }}
+            - --vci-version={{ include "eudi-dev.vciVersion" . }}
+            {{- end }}
+            {{- if .Values.issuance.clientId }}
+            - --vci-client-id={{ tpl .Values.issuance.clientId . }}
+            {{- end }}
+            {{- if .Values.issuance.redirectURI }}
+            - --vci-redirect-uri={{ tpl .Values.issuance.redirectURI . }}
+            {{- end }}
+            {{- if .Values.issuance.clientAttestation }}
+            - --client-attestation
+            {{- end }}
+            {{- if .Values.issuance.keyAttestationLevel }}
+            - --key-attestation-level={{ .Values.issuance.keyAttestationLevel }}
+            {{- end }}
+            {{- if .Values.presentation.sessionTranscript }}
+            - --session-transcript={{ .Values.presentation.sessionTranscript }}
+            {{- end }}
+            {{- if .Values.presentation.preferredFormat }}
+            - --preferred-format={{ .Values.presentation.preferredFormat }}
+            {{- end }}
+            {{- if .Values.presentation.requireEncryptedRequest }}
+            - --require-encrypted-request
+            {{- end }}
+            {{- if .Values.demoIssuer.clientAuth }}
+            - --demo-issuer-client-auth={{ .Values.demoIssuer.clientAuth }}
+            {{- end }}
+            {{- if or .Values.demoVerifier.trustAnchors .Values.demoVerifier.existingTrustAnchorsSecret }}
+            - --demo-verifier-trust-anchor=/opt/eudi-dev/trust-anchors/trust-anchors.pem
+            {{- end }}
+            {{- if or .Values.imprint.html .Values.imprint.existingConfigMap }}
+            - --imprint-file=/opt/eudi-dev/imprint/imprint.html
+            {{- end }}
+            {{- if .Values.holderKey.existingSecret }}
+            - --key=/opt/eudi-dev/holder-key/{{ .Values.holderKey.existingSecretKey }}
+            {{- end }}
+            {{- if .Values.issuerKey.existingSecret }}
+            - --issuer-key=/opt/eudi-dev/issuer-key/{{ .Values.issuerKey.existingSecretKey }}
+            {{- end }}
+            {{- if or .Values.credentialTemplates.templates .Values.credentialTemplates.existingConfigMap }}
+            - --templates-dir=/opt/eudi-dev/templates
+            {{- end }}
+            {{- range include "eudi-dev.importCredentialPaths" . | splitList "\n" | compact }}
+            - --credential={{ . }}
+            {{- end }}
             {{- if .Values.extraArgs }}
             {{- include "common.tplvalues.render" (dict "value" .Values.extraArgs "context" $) | nindent 12 }}
             {{- end }}
@@ -121,6 +176,8 @@ spec:
           lifecycle: {{- include "common.tplvalues.render" (dict "value" .Values.lifecycleHooks "context" $) | nindent 12 }}
           {{- end }}
           env:
+            - name: EUDI_DEV_LOG_FORMAT
+              value: {{ .Values.logFormat | quote }}
             - name: EUDI_DEV_STORAGE
               value: {{ include "eudi-dev.storage" . | quote }}
             - name: EUDI_DEV_SEED
@@ -143,9 +200,9 @@ spec:
             - name: HTTP_PROXY
               value: {{ .Values.outboundProxy.httpProxy | quote }}
             {{- end }}
-            {{- if .Values.outboundProxy.noProxy }}
+            {{- if or .Values.outboundProxy.httpsProxy .Values.outboundProxy.httpProxy .Values.outboundProxy.noProxy }}
             - name: NO_PROXY
-              value: {{ .Values.outboundProxy.noProxy | quote }}
+              value: {{ include "eudi-dev.noProxy" . | quote }}
             {{- end }}
             {{- if .Values.extraEnvVars }}
             {{- include "common.tplvalues.render" (dict "value" .Values.extraEnvVars "context" $) | nindent 12 }}
@@ -180,7 +237,7 @@ spec:
           {{- else if .Values.livenessProbe.enabled }}
           livenessProbe: {{- include "common.tplvalues.render" (dict "value" (omit .Values.livenessProbe "enabled") "context" $) | nindent 12 }}
             httpGet:
-              path: /api/version
+              path: /healthz
               port: http
           {{- end }}
           {{- if .Values.customReadinessProbe }}
@@ -188,7 +245,7 @@ spec:
           {{- else if .Values.readinessProbe.enabled }}
           readinessProbe: {{- include "common.tplvalues.render" (dict "value" (omit .Values.readinessProbe "enabled") "context" $) | nindent 12 }}
             httpGet:
-              path: /api/version
+              path: /readyz
               port: http
           {{- end }}
           {{- if .Values.customStartupProbe }}
@@ -196,7 +253,7 @@ spec:
           {{- else if .Values.startupProbe.enabled }}
           startupProbe: {{- include "common.tplvalues.render" (dict "value" (omit .Values.startupProbe "enabled") "context" $) | nindent 12 }}
             httpGet:
-              path: /api/version
+              path: /healthz
               port: http
           {{- end }}
           {{- end }}
@@ -209,6 +266,36 @@ spec:
             {{- if .Values.tls.existingCASecret }}
             - name: ca-certificates
               mountPath: /opt/eudi-dev/ca
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.demoVerifier.trustAnchors .Values.demoVerifier.existingTrustAnchorsSecret }}
+            - name: trust-anchors
+              mountPath: /opt/eudi-dev/trust-anchors
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.imprint.html .Values.imprint.existingConfigMap }}
+            - name: imprint
+              mountPath: /opt/eudi-dev/imprint
+              readOnly: true
+            {{- end }}
+            {{- if .Values.holderKey.existingSecret }}
+            - name: holder-key
+              mountPath: /opt/eudi-dev/holder-key
+              readOnly: true
+            {{- end }}
+            {{- if .Values.issuerKey.existingSecret }}
+            - name: issuer-key
+              mountPath: /opt/eudi-dev/issuer-key
+              readOnly: true
+            {{- end }}
+            {{- if or .Values.credentialTemplates.templates .Values.credentialTemplates.existingConfigMap }}
+            - name: credential-templates
+              mountPath: /opt/eudi-dev/templates
+              readOnly: true
+            {{- end }}
+            {{- if include "eudi-dev.importCredentialPaths" . }}
+            - name: import-credentials
+              mountPath: /opt/eudi-dev/credentials
               readOnly: true
             {{- end }}
             {{- if .Values.extraVolumeMounts }}
@@ -231,6 +318,67 @@ spec:
         - name: ca-certificates
           secret:
             secretName: {{ tpl .Values.tls.existingCASecret . }}
+        {{- end }}
+        {{- if .Values.demoVerifier.existingTrustAnchorsSecret }}
+        - name: trust-anchors
+          secret:
+            secretName: {{ tpl .Values.demoVerifier.existingTrustAnchorsSecret . }}
+            items:
+              - key: {{ .Values.demoVerifier.existingTrustAnchorsSecretKey }}
+                path: trust-anchors.pem
+        {{- else if .Values.demoVerifier.trustAnchors }}
+        - name: trust-anchors
+          configMap:
+            name: {{ include "eudi-dev.configMapName" . }}
+            items:
+              - key: trust-anchors.pem
+                path: trust-anchors.pem
+        {{- end }}
+        {{- if or .Values.imprint.html .Values.imprint.existingConfigMap }}
+        - name: imprint
+          configMap:
+            name: {{ ternary (tpl .Values.imprint.existingConfigMap .) (include "eudi-dev.configMapName" .) (not (empty .Values.imprint.existingConfigMap)) }}
+            items:
+              - key: {{ ternary .Values.imprint.existingConfigMapKey "imprint.html" (not (empty .Values.imprint.existingConfigMap)) }}
+                path: imprint.html
+        {{- end }}
+        {{- if .Values.holderKey.existingSecret }}
+        - name: holder-key
+          secret:
+            secretName: {{ tpl .Values.holderKey.existingSecret . }}
+        {{- end }}
+        {{- if .Values.issuerKey.existingSecret }}
+        - name: issuer-key
+          secret:
+            secretName: {{ tpl .Values.issuerKey.existingSecret . }}
+        {{- end }}
+        {{- if .Values.credentialTemplates.existingConfigMap }}
+        - name: credential-templates
+          configMap:
+            name: {{ tpl .Values.credentialTemplates.existingConfigMap . }}
+        {{- else if .Values.credentialTemplates.templates }}
+        - name: credential-templates
+          configMap:
+            name: {{ include "eudi-dev.configMapName" . }}
+            items:
+              {{- range $name, $template := .Values.credentialTemplates.templates }}
+              - key: template-{{ include "eudi-dev.templateFileName" $name }}
+                path: {{ include "eudi-dev.templateFileName" $name }}
+              {{- end }}
+        {{- end }}
+        {{- if .Values.importCredentials.existingConfigMap }}
+        - name: import-credentials
+          configMap:
+            name: {{ tpl .Values.importCredentials.existingConfigMap . }}
+        {{- else if .Values.importCredentials.credentials }}
+        - name: import-credentials
+          configMap:
+            name: {{ include "eudi-dev.configMapName" . }}
+            items:
+              {{- range $name, $credential := .Values.importCredentials.credentials }}
+              - key: credential-{{ $name }}
+                path: {{ $name }}
+              {{- end }}
         {{- end }}
         {{- if .Values.extraVolumes }}
         {{- include "common.tplvalues.render" (dict "value" .Values.extraVolumes "context" $) | nindent 8 }}

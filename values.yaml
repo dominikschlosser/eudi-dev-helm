@@ -90,7 +90,7 @@ diagnosticMode:
 image:
   registry: ghcr.io
   repository: dominikschlosser/eudi-dev
-  tag: v2.5.1
+  tag: v2.6.0
   digest: ""
   ## Specify a imagePullPolicy
   ## ref: https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
@@ -106,7 +106,7 @@ image:
   pullSecrets: []
 ## @param baseURL Public URL of the wallet, such as https://eudi.example.com or https://example.com/some/context. Empty: the ingress URL when the ingress is enabled, otherwise the in-cluster service URL
 ## The wallet builds all URLs in credentials, metadata and requests from it.
-## A path prefix needs eudi-dev 2.6.0 or later. Use an https URL behind an ingress. With an http URL, the wallet serves its issuer on a separate port that the ingress does not route.
+## Use an https URL behind an ingress. With an http URL, the wallet serves its issuer on a separate port that the ingress does not route.
 ## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/reverse-proxy.md
 ##
 baseURL: ""
@@ -151,6 +151,10 @@ seed:
   ## @param seed.existingSecretKey Key of the seed in `seed.existingSecret`
   ##
   existingSecretKey: seed
+## @param logFormat Console output format: `text`, or `json` for one JSON record per line with a level and the logging component (`EUDI_DEV_LOG_FORMAT`)
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet/serve.md#json-logs
+##
+logFormat: text
 ## Certificate checks for outbound HTTPS requests
 ##
 tls:
@@ -164,6 +168,9 @@ tls:
   ##
   existingCASecretKey: ca.crt
 ## Forward proxy for requests to issuers and verifiers
+## Requests to in-cluster services (`.svc` and `.<clusterDomain>`) always connect directly.
+## With `networkPolicy.allowExternalEgress=false`, the NetworkPolicy allows egress on the proxy ports.
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet/serve.md#outbound-proxy
 ##
 outboundProxy:
   ## @param outboundProxy.httpsProxy Proxy for `https://` URLs (`HTTPS_PROXY`)
@@ -172,14 +179,140 @@ outboundProxy:
   ## @param outboundProxy.httpProxy Proxy for `http://` URLs (`HTTP_PROXY`)
   ##
   httpProxy: ""
-  ## @param outboundProxy.noProxy Comma separated hosts to connect to directly (`NO_PROXY`)
+  ## @param outboundProxy.noProxy Comma separated hosts to connect to directly, in addition to the in-cluster services (`NO_PROXY`)
   ##
   noProxy: ""
+## @param haip Enforce HAIP 1.0 on presentations and credential offers: `true`, `false`, or empty for the eudi-dev default (on with `demo.enabled`) (`--haip`)
+##
+haip: ""
+## @param statusList Embed status list references in the credentials the wallet generates (`--status-list`)
+##
+statusList: false
+## @param adhocDisplayImages Keep an issuer's https display image URLs and load them when a card is shown instead of storing the images (`--adhoc-display-images`)
+##
+adhocDisplayImages: false
+## Wallet behaviour as an OpenID4VCI client
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet/issuing.md
+##
+issuance:
+  ## @param issuance.vciVersion OpenID4VCI feature level: `1.0`, `1.1`, or empty for the eudi-dev default (`1.0`, `1.1` with `demo.enabled`) (`--vci-version`)
+  ##
+  vciVersion: ""
+  ## @param issuance.clientId Client ID for authorization code flows (`--vci-client-id`)
+  ##
+  clientId: ""
+  ## @param issuance.redirectURI Redirect URI for authorization code flows (`--vci-redirect-uri`)
+  ##
+  redirectURI: ""
+  ## @param issuance.clientAttestation Send the wallet attestation on token requests even when the issuer does not advertise `attest_jwt_client_auth` (`--client-attestation`)
+  ##
+  clientAttestation: false
+  ## @param issuance.keyAttestationLevel What the key attestation claims as key storage and user authentication: `none`, `iso_18045_high`, `iso_18045_moderate`, `iso_18045_enhanced-basic`, `iso_18045_basic`, or empty for what the issuer requires (`--key-attestation-level`)
+  ##
+  keyAttestationLevel: ""
+## Wallet behaviour in OpenID4VP presentations
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/wallet/presenting.md
+##
+presentation:
+  ## @param presentation.sessionTranscript mdoc session transcript: `oid4vp` (OpenID4VP 1.0), `iso` (ISO 18013-7), or empty for the eudi-dev default (`oid4vp`) (`--session-transcript`)
+  ##
+  sessionTranscript: ""
+  ## @param presentation.preferredFormat Format to present when credentials in several formats match: `dc+sd-jwt`, `mso_mdoc`, `jwt_vc_json`, or empty for no preference (`--preferred-format`)
+  ##
+  preferredFormat: ""
+  ## @param presentation.requireEncryptedRequest Reject request objects that are not encrypted (`--require-encrypted-request`)
+  ##
+  requireEncryptedRequest: false
+## The demo issuer
+##
+demoIssuer:
+  ## @param demoIssuer.clientAuth What the demo issuer requires at its PAR and token endpoints: `required` (wallet attestation, HAIP 1.0), `optional`, or empty for the eudi-dev default (`required`) (`--demo-issuer-client-auth`)
+  ##
+  clientAuth: ""
+## The demo verifier
+##
+demoVerifier:
+  ## @param demoVerifier.trustAnchors PEM CA certificates the demo verifier accepts issuer chains under, next to the wallet's own CA (`--demo-verifier-trust-anchor`)
+  ## e.g:
+  ## trustAnchors: |
+  ##   -----BEGIN CERTIFICATE-----
+  ##   ...
+  ##   -----END CERTIFICATE-----
+  ##
+  trustAnchors: ""
+  ## @param demoVerifier.existingTrustAnchorsSecret Name of an existing secret with the PEM trust anchors (`demoVerifier.trustAnchors` is then ignored)
+  ##
+  existingTrustAnchorsSecret: ""
+  ## @param demoVerifier.existingTrustAnchorsSecretKey Key of the PEM trust anchors in `demoVerifier.existingTrustAnchorsSecret`
+  ##
+  existingTrustAnchorsSecretKey: ca.crt
+## Legal notice of the site operator, served at /imprint. Public hosting in the EU requires one.
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/public-demo.md
+##
+imprint:
+  ## @param imprint.html HTML snippet with the legal notice (`--imprint-file`)
+  ##
+  html: ""
+  ## @param imprint.existingConfigMap Name of an existing ConfigMap with the HTML snippet (`imprint.html` is then ignored)
+  ##
+  existingConfigMap: ""
+  ## @param imprint.existingConfigMapKey Key of the HTML snippet in `imprint.existingConfigMap`
+  ##
+  existingConfigMapKey: imprint.html
+## Holder key. Without it the wallet derives the key from the seed or generates one.
+##
+holderKey:
+  ## @param holderKey.existingSecret Name of an existing secret with the holder's EC private key as PEM or JWK (`--key`)
+  ##
+  existingSecret: ""
+  ## @param holderKey.existingSecretKey Key of the holder key in `holderKey.existingSecret`
+  ##
+  existingSecretKey: key.pem
+## Issuer key for the credentials the wallet generates, such as the PID
+##
+issuerKey:
+  ## @param issuerKey.existingSecret Name of an existing secret with the issuer's EC private key as PEM or JWK (`--issuer-key`)
+  ##
+  existingSecret: ""
+  ## @param issuerKey.existingSecretKey Key of the issuer key in `issuerKey.existingSecret`
+  ##
+  existingSecretKey: key.pem
+## Credential templates. They replace the templates in the storage backend, and saving or deleting a template in the web UI fails.
+## ref: https://github.com/dominikschlosser/eudi-dev/blob/main/docs/templates.md
+##
+credentialTemplates:
+  ## @param credentialTemplates.templates Templates by name (`--templates-dir`)
+  ## e.g:
+  ## templates:
+  ##   employee-card:
+  ##     format: sdjwt
+  ##     vct: urn:example:employee
+  ##     claims:
+  ##       employee_id: E-1
+  ##
+  templates: {}
+  ## @param credentialTemplates.existingConfigMap Name of an existing ConfigMap with one template per key, such as `employee-card.json` (`credentialTemplates.templates` is then ignored)
+  ##
+  existingConfigMap: ""
+## Credentials to import on every start. With file or postgresql storage each start adds another copy.
+##
+importCredentials:
+  ## @param importCredentials.credentials Credentials by file name, as SD-JWT, JWT or mdoc (`--credential`)
+  ## e.g:
+  ## credentials:
+  ##   employee.sdjwt: eyJhbGciOi...~
+  ##
+  credentials: {}
+  ## @param importCredentials.existingConfigMap Name of an existing ConfigMap with the credentials (`importCredentials.credentials` is then ignored)
+  ##
+  existingConfigMap: ""
+  ## @param importCredentials.existingConfigMapKeys Keys of the credentials to import from `importCredentials.existingConfigMap`
+  ##
+  existingConfigMapKeys: []
 ## @param extraArgs Extra arguments for `eudi wallet serve`
 ## e.g:
 ## extraArgs:
-##   - --haip
-##   - --preferred-format=dc+sd-jwt
+##   - --some-new-flag
 ##
 extraArgs: []
 ## @param command Override the default container command (useful when using custom images)
