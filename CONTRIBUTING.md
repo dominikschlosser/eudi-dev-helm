@@ -45,4 +45,4 @@ CI lints the chart, checks the README, and runs the tests twice: with the image 
 2. Add an entry to `CHANGELOG.md`.
 3. Merge to `main`.
 
-The release workflow pushes a chart version that has no git tag yet to `oci://ghcr.io/dominikschlosser/charts` and creates a GitHub release named `eudi-dev-<version>` with the packaged chart.
+The release workflow pushes a chart version that has no git tag yet to `oci://ghcr.io/dominikschlosser/charts` and creates a GitHub release with the packaged chart. The release and its git tag are named `v<version>`, such as `v0.1.0`.
