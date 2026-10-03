@@ -1,6 +1,7 @@
 # chart-testing configuration (https://github.com/helm/chart-testing)
-chart-dirs:
-  - charts
+# The chart lives at the repository root.
+charts:
+  - .
 target-branch: main
 validate-maintainers: false
 check-version-increment: true

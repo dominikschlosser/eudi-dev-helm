@@ -1,4 +1,4 @@
-CHART := charts/eudi-dev
+CHART := .
 
 .PHONY: deps lint readme test
 
@@ -7,9 +7,9 @@ deps:
 
 lint: deps
 	helm lint $(CHART)
-	ct lint --config ct.yaml --all --check-version-increment=false
+	ct lint --config ct.yaml --check-version-increment=false
 
-# Regenerates the parameter tables in the chart README from values.yaml.
+# Regenerates the parameter tables in README.md from values.yaml.
 readme:
 	npx -y @bitnami/readme-generator-for-helm@2 -v $(CHART)/values.yaml -r $(CHART)/README.md
 

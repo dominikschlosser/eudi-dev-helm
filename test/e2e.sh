@@ -16,7 +16,7 @@
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
-CHART=$ROOT/charts/eudi-dev
+CHART=$ROOT
 CLUSTER_NAME=${CLUSTER_NAME:-eudi-helm-test}
 KIND=false
 [ "${1:-}" = "--kind" ] && KIND=true

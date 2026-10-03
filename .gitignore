@@ -1,3 +1,4 @@
-charts/*/charts/
+/charts/
+/dist/
 *.tgz
 .DS_Store

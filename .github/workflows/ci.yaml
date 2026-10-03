@@ -29,14 +29,15 @@ jobs:
 
       - uses: helm/chart-testing-action@v2.8.0
 
-      # Pull requests must raise the chart version. Pushes to main lint every chart.
+      # Pull requests that change the packaged chart must raise its version.
       - name: Lint
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            ct lint --config ct.yaml
-          else
-            ct lint --config ct.yaml --all --check-version-increment=false
+          bump=false
+          if [ "${{ github.event_name }}" = "pull_request" ] &&
+            ! git diff --quiet origin/main...HEAD -- Chart.yaml Chart.lock values.yaml templates README.md LICENSE .helmignore; then
+            bump=true
           fi
+          ct lint --config ct.yaml --check-version-increment=$bump
 
       - uses: actions/setup-node@v4
         with:
@@ -44,11 +45,9 @@ jobs:
 
       - name: Check that the README matches values.yaml
         run: |
-          for chart in charts/*/; do
-            npx -y @bitnami/readme-generator-for-helm@2 -v "$chart/values.yaml" -r "$chart/README.md"
-          done
-          git diff --exit-code -- 'charts/*/README.md' || {
-            echo "::error::Regenerate the README with readme-generator-for-helm (see README.md)"
+          npx -y @bitnami/readme-generator-for-helm@2 -v values.yaml -r README.md
+          git diff --exit-code -- README.md || {
+            echo "::error::Regenerate the README with make readme (see CONTRIBUTING.md)"
             exit 1
           }
 
